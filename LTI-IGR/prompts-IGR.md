@@ -449,4 +449,26 @@ Importante: Todos los documentos que generes, escríbelos en inglés. Los diagra
 
 ### Response:
 
+Ha generado un fichero design.md en la carpeta 'LIT-IGR/specs' con el diseño del sistema.
+
+</br>
+
+## Prompt 6
+
+Agent: Claude Code - Sonnet 4.6
+
+### Request:
+
+Eres un arquitecto de software experto.
+
+Coge uno de los diagramas C4 que hay definidos en LIT-IGR/specs/design.md y haz que llegue en profundidad a uno de los componentes del sistema, el que prefieras.
+
+La información nueva que generes deben añadirse al documento ya existente LTI-IGR/specs/design.md
+
+Importante: Todos los documentos que generes, escríbelos en inglés. Los diagramas deben realizarse en mermaid.
+
+### Response:
+
+Ha añadido al final del fichero design.md en la carpeta 'LIT-IGR/specs' el apartado 'Deep Dive — AI Platform (C4 Level 3)'.
+
 </br>
