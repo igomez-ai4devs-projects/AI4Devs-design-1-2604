@@ -4,7 +4,7 @@
 
 Agent: Chat GPT 5.5
 
-### Petición:
+### Request:
 
 Mejorame este prompt para utilizarlo en Claude Code:
 
@@ -12,7 +12,7 @@ Eres un experto en el negocio de un sistema ATS (Applicant-Tracking System). Te 
 
 ¿Qué funcionalidades básicas tiene un sistema ATS (Applicant-Tracking System)? ¿Qué valor añadido tiene para los clientes? Dime también ventajas competitivas. Explicame las funciones principales. Añade un diagrma Lean Canvas para entender el modelo de negocio. Escribelo en inglés.
 
-### Respuesta:
+### Response:
 
 Act as a business expert in Applicant Tracking Systems (ATS), recruitment software, and HRTech solutions, with extensive experience in SaaS business models, HR digital transformation, competitive analysis, go-to-market strategy, and product-led growth.
 
@@ -344,14 +344,58 @@ Final objective: provide a comprehensive understanding of the functionality, mar
 
 Agent: Claude Code - Sonnet 4.6
 
-### Input:
+### Request:
 
 Copio el anterior prompt generado por ChatGPT y añado lo siguiente:
 
 Create an AGENTS.md file in the LTI-IGR directory and populate it with the information generated from this analysis. Design the document as a living specification, anticipating that additional sections and requirements will be added over time. Ensure the structure is modular, organized, and easy to extend.
 
-### Respuesta:
+### Response:
 
 Ha generado el fichero AGENTS.md con el primer artefacto requerido.
+
+</br>
+
+## Prompt 3
+
+Agent: Claude Code - Sonnet 4.6
+
+### Request:
+
+Estoy construyendo un sistema ATS (Applicant-Tracking System). Utiliza el documento AGENTS.md para saber concretamente los requisitos del producto y funcionalidad a diseñasr, que tendrá el sistema.
+
+Eres un analista de software experto. Necesito que identifiques los diferentes roles de usuarios que interactuarán con nuestro software, acciones que cada uno de ellos realizarán en el sistema, las dependencias de unas acciones con otras, etc.
+
+Debes enumerar y describir brevemente los casos de uso más importantes a implementar para lograr una funcionalidad básica.
+
+Finalmente, debes describir los 3 casos de uso principales, con un diagrama (en mermaid) asociado a cada uno. Cada fichero que generes se guardará como spec.md en cada dominio. A continuación muestro un ejemplo:
+
+LTI-IGR
+
+└── specs/
+
+    ├── auth/
+    │   └── spec.md        ← ejemplo de casos de uso de autenticación
+    ├── candidates/
+    │   └── spec.md        ← ejemplo de casos de uso de candidatos
+    └── interviews/
+        └── spec.md        ← ejemplo de casos de uso de entrevistas
+
+Nota: Todos los documentos que generes, escríbelos en inglés. No utilices auth, candidates, interviews como casos de uso principales, utiliza tu propio criterio para elegir los 3 casos de uso.
+
+### Response:
+
+Ha generado un fichero README.md con los principales casos de uso, roles de usuario, etc. Y ha generado un spec.md para cada uno de los 3 principales casos de uso del sector ATS (Applicant-Tracking System), incluyendo los diagramas.
+
+LTI-IGR
+
+└── specs/
+
+    ├── candidates/
+    │   └── spec.md        ← ejemplo de casos de uso de candidatos
+    ├── interviews/
+    │   └── spec.md        ← ejemplo de casos de uso de entrevistas
+    └── requisitions/
+        └── spec.md        ← ejemplo de casos de uso de solicitud de vacante
 
 </br>
