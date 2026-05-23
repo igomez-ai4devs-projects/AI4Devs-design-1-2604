@@ -381,7 +381,7 @@ LTI-IGR
     └── interviews/
         └── spec.md        ← ejemplo de casos de uso de entrevistas
 
-Nota: Todos los documentos que generes, escríbelos en inglés. No utilices auth, candidates, interviews como casos de uso principales, utiliza tu propio criterio para elegir los 3 casos de uso.
+Importante: Todos los documentos que generes, escríbelos en inglés. No utilices auth, candidates, interviews como casos de uso principales, utiliza tu propio criterio para elegir los 3 casos de uso.
 
 ### Response:
 
@@ -392,10 +392,43 @@ LTI-IGR
 └── specs/
 
     ├── candidates/
-    │   └── spec.md        ← ejemplo de casos de uso de candidatos
+    │   └── spec.md        ← casos de uso de candidatos
     ├── interviews/
-    │   └── spec.md        ← ejemplo de casos de uso de entrevistas
+    │   └── spec.md        ← casos de uso de entrevistas
     └── requisitions/
-        └── spec.md        ← ejemplo de casos de uso de solicitud de vacante
+        └── spec.md        ← casos de uso de solicitud de vacante
+
+</br>
+
+## Prompt 4
+
+Agent: Claude Code - Sonnet 4.6
+
+### Request:
+
+Parte de la documentación que hay en la carpeta LTI-IGR, principalmente de las 3 specps definidas dentro de la carpeta specs: anteriormente: cadidates/spec.md, interviews/spec.md y requisitions/spec.md
+
+Eres un arquitecto de software experto. Genera las entidades, atributos (nombre y tipo) y relaciones, del modelo de datos para esos 3 casos de uso. En resumen, dame algunos campos esenciales de cada una y cómo se relacionan.
+
+Genera los diagramas del modelado entidad-relación en mermaid.
+
+La información deberá añadirse a un fichero _design.md_ dentro de cada carpeta de dominio/feature.
+
+Importante: Todos los documentos que generes, escríbelos en inglés.
+
+### Response:
+
+Ha generado un fichero design.md por dominio/feature, incluyendo los diagramas.
+
+LTI-IGR
+
+└── specs/
+
+    ├── candidates/
+    │   └── design.md
+    ├── interviews/
+    │   └── design.md
+    └── requisitions/
+        └── design.md
 
 </br>

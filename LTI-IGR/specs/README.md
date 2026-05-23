@@ -3,7 +3,7 @@
 > **Type:** Living specification — functional analysis of the ATS
 > **Source of requirements:** [`../AGENTS.md`](../AGENTS.md)
 > **Last updated:** 2026-05-23
-> **Structure:** one `spec.md` per functional domain. This README is the master index of roles, dependencies and use cases.
+> **Structure:** every domain folder contains a `spec.md` (functional analysis & use cases) and a `design.md` (data model: entities, attributes, ER diagram). This README is the master index of roles, dependencies and use cases.
 
 ---
 
@@ -29,11 +29,11 @@
 |---|---|---|
 | **auth** | _pending_ | Identity, sessions, SSO, RBAC, invitations (foundational, not a core funnel use case) |
 | **organization** | _pending_ | Tenants, teams, employer brand, settings |
-| **requisitions** | [requisitions/spec.md](requisitions/spec.md) | Requisition lifecycle, approval, career-site publication, multi-board distribution |
-| **candidates** | [candidates/spec.md](candidates/spec.md) | Application, CV parsing, knockout, AI matching, talent database, pipeline |
+| **requisitions** | [spec.md](requisitions/spec.md) · [design.md](requisitions/design.md) | Requisition lifecycle, approval, career-site publication, multi-board distribution |
+| **candidates** | [spec.md](candidates/spec.md) · [design.md](candidates/design.md) | Application, CV parsing, knockout, AI matching, talent database, pipeline |
 | **sourcing** | _pending_ | Talent pools, referrals, campaigns, agentic sourcing |
 | **assessments** | _pending_ | Technical, skills, and psychometric assessments (integration-led) |
-| **interviews** | [interviews/spec.md](interviews/spec.md) | Scheduling, interview kits, scorecards, debrief, hire decision |
+| **interviews** | [spec.md](interviews/spec.md) · [design.md](interviews/design.md) | Scheduling, interview kits, scorecards, debrief, hire decision |
 | **communications** | _pending_ | Email/SMS templates, automation, nurture campaigns |
 | **offers** | _pending_ | Offer generation, approval, e-signature |
 | **onboarding-handoff** | _pending_ | Handoff to HRMS/HRIS |
