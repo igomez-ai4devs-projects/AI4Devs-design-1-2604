@@ -448,8 +448,236 @@ Stack choices are **proposals, not commitments** — they will be revisited per 
 
 ---
 
-## 13. Changelog
+## 13. Deep Dive — AI Platform (C4 Level 3)
+
+This section zooms from the container-level **AI Platform** box in §4 into its internal components. The AI Platform is selected because it is the platform's primary strategic differentiator ([`../AGENTS.md`](../AGENTS.md) §5, §10) and the riskiest subsystem (cost, compliance, model drift). All other modules treat it as a black box behind a stable contract.
+
+### 13.1 Scope & Responsibilities
+
+The AI Platform owns:
+
+1. **Resume understanding** — extract structured `ParsedSkill` / `ParsedExperience` / `ParsedEducation` from raw CVs (UC-CAND-02).
+2. **Candidate–job matching** — produce a `MatchScore` with explainability for every `Application` (UC-SCR-02).
+3. **Recruiter copilot** — interactive drafting (JD, outreach, summaries, scorecard hints) backing the SPA.
+4. **Agentic sourcing** — autonomous loops that propose passive candidates with human-in-the-loop approval (roadmap Q4).
+5. **Embeddings lifecycle** — keep vector representations of candidates and jobs current.
+6. **Responsible-AI guardrails** — bias checks, explainability records, decision logging required by EU AI Act and NYC LL144.
+
+Out of scope: business workflow state (owned by Candidates / Requisitions / Interviews modules) and any direct user authentication (delegated to Auth).
+
+### 13.2 Component Diagram
+
+```mermaid
+flowchart TB
+    subgraph External["External callers"]
+        APIC[Core API<br/>Candidates · Requisitions · Sourcing]
+        WK[Async Workers]
+        SPA[Recruiter SPA<br/>streaming copilot]
+    end
+
+    subgraph AI[AI Platform]
+        GW[AI API Gateway<br/>auth · quotas · cost meter]
+        ORCH[Inference Orchestrator<br/>routing · retries · timeouts]
+        ROUTER[Model Router<br/>provider + size selection]
+        PROMPT[Prompt & Template Registry<br/>versioned · A/B tagged]
+        CACHE[Semantic Cache<br/>Redis + embeddings]
+        EVAL[Evaluation Harness<br/>online + offline]
+        GUARD[Safety & Bias Guardrails<br/>PII redaction · toxicity · fairness checks]
+        EXPL[Explainability Service<br/>feature attribution · rationale]
+        LEDGER[AI Decision Ledger<br/>append-only audit]
+
+        subgraph Pipelines["Domain pipelines"]
+            PARSE[Resume Parsing Pipeline]
+            MATCH[Matching Pipeline<br/>candidate ↔ job]
+            COPILOT[Copilot Service<br/>chat · drafting · summarize]
+            AGENT[Agent Runtime<br/>sourcing loop · tool calls]
+            EMB[Embeddings Worker]
+        end
+
+        FEAT[Feature Store<br/>candidate · job · outcome features]
+        MODEL[Model Registry<br/>versioned weights · prompts · evals]
+    end
+
+    subgraph DataPlane["Shared data plane"]
+        VEC[(Vector DB<br/>pgvector / Pinecone)]
+        S3[(Object Storage<br/>resumes · prompt logs)]
+        PG[(PostgreSQL<br/>read-only views: applications · outcomes)]
+        DWH[(Warehouse<br/>training datasets)]
+    end
+
+    subgraph Providers["External providers"]
+        ANTH[Anthropic Claude]
+        OAI[OpenAI]
+        SLM[Self-hosted Small Models<br/>Llama · Qwen]
+    end
+
+    APIC -->|HTTPS / gRPC| GW
+    WK -->|event triggers| GW
+    SPA -->|SSE streaming| GW
+
+    GW --> ORCH
+    ORCH --> PARSE
+    ORCH --> MATCH
+    ORCH --> COPILOT
+    ORCH --> AGENT
+    ORCH --> EMB
+
+    PARSE --> ROUTER
+    MATCH --> ROUTER
+    COPILOT --> ROUTER
+    AGENT --> ROUTER
+    EMB --> ROUTER
+
+    ROUTER --> CACHE
+    ROUTER --> PROMPT
+    ROUTER --> ANTH
+    ROUTER --> OAI
+    ROUTER --> SLM
+
+    MATCH --> FEAT
+    MATCH --> VEC
+    EMB --> VEC
+    PARSE --> S3
+
+    Pipelines --> GUARD
+    GUARD --> LEDGER
+    Pipelines --> EXPL
+    EXPL --> LEDGER
+
+    FEAT --> PG
+    FEAT --> DWH
+    MODEL --> ROUTER
+    EVAL --> MODEL
+    EVAL --> DWH
+```
+
+### 13.3 Components
+
+| # | Component | Responsibility | Notes |
+|---|---|---|---|
+| C1 | **AI API Gateway** | Authenticates callers (mTLS for internal, JWT for SPA), enforces per-tenant quotas, meters token cost, exposes one versioned contract (`/ai/v1/...`) | Single entry point — all AI traffic is observable here |
+| C2 | **Inference Orchestrator** | Dispatches each request to the correct pipeline; owns retry, timeout, and circuit-breaker policy; emits trace spans | Stateless; horizontally scaled |
+| C3 | **Model Router** | Chooses model + provider per request (cost, latency SLO, capability, tenant policy); supports cascading fallback (e.g., Claude → OpenAI → small local model) | Driven by config in Model Registry; per-tenant overrides for compliance |
+| C4 | **Prompt & Template Registry** | Versioned prompts with metadata (model, locale, eval scores); A/B test tags | Prompts are code: PR-reviewed, immutable once tagged |
+| C5 | **Semantic Cache** | Two-level cache: exact-match (Redis) + semantic similarity (embedding lookup) | Bounded TTL; tenant-scoped keys; major lever for G1 cost control |
+| C6 | **Resume Parsing Pipeline** | OCR (when needed) → LLM extraction → schema validation → confidence scoring | Persists parsed JSON back to `Resume` via Core API (UC-CAND-02) |
+| C7 | **Matching Pipeline** | Hybrid: vector similarity (semantic) + structured rules (must-haves, knockouts) + outcome-trained ranker; outputs `MatchScore` + rationale | Implements UC-SCR-02; explainability mandatory |
+| C8 | **Copilot Service** | Streaming chat/drafting backend for the SPA (SSE); supports tools (read candidate, search jobs, draft email) | Tool calls go back through Core API with the caller's RBAC scope, never the AI's |
+| C9 | **Agent Runtime** | Long-running, checkpointed agent loops for sourcing; bounded by step / cost / time budget; every external action requires human approval token | Q4 roadmap; high-blast-radius — strict guardrails |
+| C10 | **Embeddings Worker** | Computes and refreshes vector embeddings on `Resume`, `JobPosting`, and `Candidate` profile changes | Triggered by domain events `ResumeParsed`, `JobPostingPublished` |
+| C11 | **Feature Store** | Online + offline features (skills, recency, outcome labels) for the matching ranker | Online via Redis; offline via warehouse for training |
+| C12 | **Model Registry** | Versioned models, prompts, eval results, deployment stages (canary, prod) | Source of truth for what is "live" |
+| C13 | **Evaluation Harness** | Offline benchmarks before promotion; online shadow eval; drift detection on production traffic | Blocks promotion if regressions on hire-outcome metrics |
+| C14 | **Safety & Bias Guardrails** | PII redaction before logging; toxicity filter; demographic parity / adverse-impact checks on matching outcomes | Hard fail closed for matching pipeline; soft warn for copilot |
+| C15 | **Explainability Service** | Generates human-readable rationale (feature attributions for ranker, key spans for LLM decisions) | Required for every candidate-affecting decision (UC-CAND-09, EU AI Act, LL144) |
+| C16 | **AI Decision Ledger** | Append-only store: input hash, prompt version, model version, output, explanation, guardrail verdicts, cost | Joined to `AuditEvent` for UC-AN-04 auditor exports |
+
+### 13.4 Internal Contract (selected endpoints)
+
+All endpoints are tenant-scoped via the JWT subject, idempotent on `Idempotency-Key`, and return a `decisionId` that resolves to the AI Decision Ledger entry.
+
+| Endpoint | Caller | Purpose |
+|---|---|---|
+| `POST /ai/v1/resumes/{id}/parse` | Candidates module (after upload) | Run resume parsing pipeline; result also pushed back via event |
+| `POST /ai/v1/applications/{id}/match` | Candidates module on `ApplicationSubmitted` | Compute `MatchScore` for one application |
+| `POST /ai/v1/jobs/{id}/rematch` | Requisitions on JD edit | Re-rank existing applications |
+| `POST /ai/v1/copilot/messages` (SSE) | Recruiter SPA | Streaming copilot turns with tool use |
+| `POST /ai/v1/agents/sourcing/runs` | Sourcing module / scheduler | Start a bounded sourcing agent run |
+| `GET  /ai/v1/decisions/{decisionId}` | Audit, Candidates UI ("why this score?") | Retrieve full explanation + provenance |
+
+### 13.5 Matching Request — End-to-End Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Bus as Event Bus
+    participant GW as AI API Gateway
+    participant ORCH as Inference Orchestrator
+    participant CACHE as Semantic Cache
+    participant MATCH as Matching Pipeline
+    participant FEAT as Feature Store
+    participant VEC as Vector DB
+    participant RT as Model Router
+    participant LLM as LLM Provider
+    participant GUARD as Guardrails
+    participant EXPL as Explainability
+    participant LED as Decision Ledger
+    participant API as Core API
+
+    Bus->>GW: ApplicationSubmitted(applicationId)
+    GW->>ORCH: match(applicationId)
+    ORCH->>CACHE: lookup(applicationId, jobId, modelHash)
+    alt cache hit
+        CACHE-->>ORCH: cached MatchScore + decisionId
+    else cache miss
+        ORCH->>MATCH: run()
+        MATCH->>FEAT: fetch candidate + job features
+        MATCH->>VEC: top-K similar candidates / skills
+        MATCH->>RT: rerank(candidate, job, features)
+        RT->>LLM: scoring + rationale prompt
+        LLM-->>RT: score, rationale
+        RT-->>MATCH: structured score
+        MATCH->>GUARD: fairness + PII check
+        GUARD-->>MATCH: ok / blocked
+        MATCH->>EXPL: build explanation
+        EXPL-->>MATCH: rationale + feature attributions
+        MATCH->>LED: append decision (inputs hash, prompt ver, model ver, output, cost)
+        MATCH-->>ORCH: MatchScore + decisionId
+        ORCH->>CACHE: store
+    end
+    ORCH-->>GW: result
+    GW->>API: PUT /v1/applications/{id}/match
+    GW->>Bus: MatchScored(applicationId, score, decisionId)
+```
+
+### 13.6 Data Ownership
+
+| Asset | Owner | Notes |
+|---|---|---|
+| Prompts, model configs, eval reports | AI Platform (Model Registry) | Versioned in Git + registry |
+| Embeddings | AI Platform | Tenant-partitioned indices |
+| Decision ledger | AI Platform | Read by Auth-scoped audit endpoints |
+| Parsed resume structured data | Candidates module | AI writes via Core API |
+| `MatchScore` row | Candidates module | AI writes via Core API; `decisionId` links to ledger |
+| Outcome labels (hire, reject, retention) | Analytics module | Streamed into the Feature Store for training |
+
+This split keeps the AI Platform free of domain-state ownership: business modules remain authoritative, AI is a stateless decision producer plus its own observability/provenance state.
+
+### 13.7 Cross-cutting Behaviors
+
+| Concern | Implementation |
+|---|---|
+| **Cost control** | Token meter at C1; semantic cache (C5); cascading router (C3) prefers small/local models when SLO permits; per-tenant monthly cost budgets with throttle |
+| **Latency budgets** | Copilot p95 ≤ 1.5s first token, ≤ 8s full turn; matching p95 ≤ 4s; parsing p95 ≤ 10s per CV |
+| **Provider neutrality** | Single internal `LLMRequest` schema; all provider-specific quirks live in adapters under C3 |
+| **Privacy** | PII redaction before any prompt leaves the VPC (C14); per-tenant opt-in for provider training data sharing — default off |
+| **Fairness audits** | Nightly job in C13 computes adverse-impact ratios per protected class on `MatchScored` events; alerts on threshold breach |
+| **Reproducibility** | Every ledger entry stores enough to replay: input hash, prompt version, model version, sampling params |
+| **Kill switch** | Per-tenant flag disables AI features without redeploy; matching pipeline degrades to rule-based fallback |
+
+### 13.8 Failure Modes & Mitigations
+
+| Failure | Impact | Mitigation |
+|---|---|---|
+| Provider outage | Copilot, matching unavailable | Router cascade to alternate provider; small-model fallback for matching |
+| Prompt regression | Quality drop | Eval harness blocks promotion; canary rollout per tenant; one-click rollback in Model Registry |
+| Cost spike (loop / abuse) | Bill shock | Token meter hard cap per tenant + per user; agent runs are step-bounded |
+| Bias drift | Compliance breach | Fairness audit (C14) alerts; auto-quarantine model version |
+| Hallucinated tool call by Copilot | Wrong data shown | Tool calls re-enter Core API under caller RBAC; AI cannot bypass authorization |
+| Stale embeddings after JD edit | Bad matches | `JobPostingPublished` re-triggers Embeddings Worker; rematch job for active applications |
+
+### 13.9 Open Questions Specific to This Component
+
+1. **In-house ranker vs LLM-as-judge** — train a dedicated learning-to-rank model on outcome data, or rely on LLM scoring with structured features? Affects C7 and the entire training pipeline.
+2. **Per-tenant model fine-tuning** — offer as enterprise feature, or stay with prompt-level personalization only?
+3. **Agent sandboxing** — run C9 tool calls inside a separate process / VM, or trust process-level isolation?
+4. **Feature Store buy vs build** — Feast/Tecton vs custom on Postgres+Redis at MVP.
+
+---
+
+## 14. Changelog
 
 | Version | Date | Change |
 |---|---|---|
 | 0.1 | 2026-05-23 | Initial high-level architecture: context, containers, components, communication patterns, integrations, deployment. |
+| 0.2 | 2026-05-23 | Added §13 — Deep Dive on the AI Platform component (C4 Level 3): components, internal contract, matching sequence, data ownership, cross-cutting behaviors, failure modes. |
