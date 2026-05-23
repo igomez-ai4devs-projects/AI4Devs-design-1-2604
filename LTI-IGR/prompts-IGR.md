@@ -432,3 +432,21 @@ LTI-IGR
         └── design.md
 
 </br>
+
+## Prompt 5
+
+Agent: Claude Code - Sonnet 4.6
+
+### Request:
+
+Eres un arquitecto de software experto. Diseña el sistema y arquitectura de alto nivel (tanto explicado como diagrama adjunto), para la aplicación que está definida dentro de la carpeta LTI-IGR. Revisa todos los documentos, principalmente, AGENTS.md y README.md y añadelos al contexto del experto.
+
+Incluye la arquitectura de software, la distribución de componentes, la integración de sistemas externos y los patrones de comunicación.
+
+La información nueva que generes deben añadirse a un documento design.md general dentro de la carpeta specs.
+
+Importante: Todos los documentos que generes, escríbelos en inglés. Los diagramas deben realizarse en mermaid.
+
+### Response:
+
+</br>
